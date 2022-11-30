@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+    />
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+    <script src="https://unpkg.com/@rjsf/core@4.2.2/dist/react-jsonschema-form.js"></script>
+    <title>設定ファイル編集</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="text/babel">
+      // -------------ここより下を編集する-------------
+      // JSONスキーマを定義
+      // 参考：https://rjsf-team.github.io/react-jsonschema-form/
+
+      const schema = {
+        title: "設定",
+        type: "object",
+        required: ["name", "kind", "emailTo"],
+        properties: {
+          name: {
+            title: "名前",
+            type: "string",
+          },
+          kind: {
+            title: "ステータス",
+            type: "string",
+            enum: ["OK", "NG", "UNKNOWN"],
+          },
+          emailTo: {
+            title: "メール宛先リスト",
+            type: "array",
+            items: {
+              type: "string",
+              format: "email",
+            },
+          },
+        },
+      };
+
+      // UIを指定する場合はUIスキーマも定義する
+      const uiSchema = {};
+
+      // デフォルト値を設定する場合は以下の値を設定する
+      const defaultFormData = {};
+      // -----------ここより上を編集する--------------
+
+      const Form = JSONSchemaForm.default;
+      const App = () => {
+        const [formData, updateFormData] = React.useState(defaultFormData);
+
+        const importJSONFile = React.useCallback((event) => {
+          const reader = new FileReader();
+          reader.readAsText(event.target.files[0]);
+
+          reader.onload = () => {
+            try {
+              const jsonData = JSON.parse(reader.result.toString());
+              updateFormData(jsonData);
+            } catch (e) {
+              alert(`JSONファイルの読み取りに失敗しました。 ${e}`);
+              throw e;
+            }
+          };
+
+          reader.onerror = (e) => {
+            alert(`JSONファイルの読み取りに失敗しました。 ${e}`);
+            throw e;
+          };
+        }, []);
+
+        const exportJSONFile = React.useCallback(
+          (jsonData, fileName = "config.json") => {
+            let blob = new Blob([JSON.stringify(jsonData, null, "  ")], {
+              type: "application/json",
+            });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            document.body.appendChild(a); // for Firefox
+            a.download = fileName;
+            a.click();
+            document.body.removeChild(a); // for Firefox
+            URL.revokeObjectURL(a.href);
+          },
+          []
+        );
+
+        const onChange = React.useCallback(({ formData, errors }) => {
+          if (errors.length !== 0) {
+            updateFormData(formData);
+          }
+        }, []);
+
+        const onSubmit = React.useCallback(({ formData }) => {
+          console.log(
+            `データをエクスポートします: ${JSON.stringify(formData)}`
+          );
+          exportJSONFile(formData);
+        }, []);
+
+        return (
+          <div className="container">
+            <input
+              className="row"
+              onChange={importJSONFile}
+              type="file"
+              accept="application/json"
+            />
+
+            <Form
+              schema={schema}
+              uiSchema={uiSchema}
+              onSubmit={onSubmit}
+              onChange={onChange}
+              formData={formData}
+              className="row"
+            >
+              <button type="submit" class="btn btn-default">
+                エクスポート
+              </button>
+            </Form>
+          </div>
+        );
+      };
+
+      ReactDOM.render(<App />, document.getElementById("app"));
+    </script>
+  </body>
+</html>
